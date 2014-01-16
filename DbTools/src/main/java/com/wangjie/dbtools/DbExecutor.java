@@ -7,6 +7,7 @@ package com.wangjie.dbtools;
 import com.wangjie.dbtools.anno.Column;
 import com.wangjie.dbtools.anno.PrimaryKey;
 import com.wangjie.dbtools.anno.Table;
+import com.wangjie.dbtools.util.*;
 import com.wangjie.dbtools.util.Log;
 import com.wangjie.refect.*;
 import java.io.*;
@@ -34,7 +35,7 @@ public class DbExecutor<T>
      */
     public List<T> executeQuery(String sql, Class<?> clazz) throws Exception{
         Connection conn = null;
-        Statement stmt = null;
+        PreparedStatement stmt = null;
         ResultSet rs = null;
         try{
             sql = sql.trim();
@@ -42,8 +43,8 @@ public class DbExecutor<T>
                 throw new Exception("paramter sql is not a SELECT statement!");
             }
             conn = C3p0DbHelper.getConnection();
-            stmt = conn.createStatement();
-            rs = stmt.executeQuery(sql);
+            stmt = conn.prepareStatement(sql);
+            rs = stmt.executeQuery();
             logger.log(Level.INFO, "sql ==> " + sql);
             List<T> list = null;
             final ResultSet rr = rs;
@@ -87,13 +88,8 @@ public class DbExecutor<T>
      */
     public int executeSave(final T obj) throws Exception{
         Connection conn = null;
-        Statement stmt = null;
+        PreparedStatement stmt = null;
         try{
-            conn = C3p0DbHelper.getConnection();
-            stmt = conn.createStatement();
-
-            String tablename = getTableValue(obj.getClass()); // 获取表名
-
             final Map<String, Object> map = new HashMap<String, Object>();
             ReflectionUtils.doWithFields(obj.getClass(), new ReflectionUtils.FieldCallback() {
 
@@ -111,21 +107,19 @@ public class DbExecutor<T>
                     map.put(columnValue, field.get(obj));
                 }
             });
-            StringBuilder tables = new StringBuilder();
-            StringBuilder values = new StringBuilder();
-            for(Map.Entry<String, Object> entry : map.entrySet()){
-                tables.append(",").append(entry.getKey());
-                Object value = entry.getValue();
-                values.append(",");
-                if(value instanceof Integer || value instanceof Double || value instanceof Float){
-                    values.append(value);
-                }else{
-                    values.append("'").append(value).append("'");
-                }
+            
+            String tablename = getTableValue(obj.getClass()); // 获取表名
+            
+            String sql = "insert into " + tablename + "(" + TextUtil.joinStrings(map.keySet(), ",") + ")" + " values(" + TextUtil.generatePlaceholders(map.size()) + ")";            
+            
+            conn = C3p0DbHelper.getConnection();
+            stmt = conn.prepareStatement(sql);
+            int i = 1;
+            for(Object o : map.values()){
+                stmt.setObject(i++, o);
             }
-            String sql = "insert into " + tablename + "(" + tables.toString().substring(1) + ")" + " values(" + values.toString().substring(1) + ")";
             logger.log(Level.INFO, "sql ==> " + sql);
-            int result = stmt.executeUpdate(sql);
+            int result = stmt.executeUpdate();
             logger.log(Level.INFO, "[executeSave]result ==> " + result);
             return result;
         }catch(Exception ex){
@@ -134,6 +128,58 @@ public class DbExecutor<T>
             C3p0DbHelper.closeJDBC(null, stmt, conn);
         }
         
+    }
+    
+    public int executeUpdate(String sql, final T obj, final List<String> includeParams, final List<String> excludeParams) throws Exception{
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        
+        final Map<String, Object> pkMap = new HashMap<String, Object>();
+        final Map<String, Object> updateMap = new HashMap<String, Object>();
+        ReflectionUtils.doWithFields(obj.getClass(), new ReflectionUtils.FieldCallback() {
+
+            public void doWith(Field field) throws Exception
+            {
+                String columnValue = getColumnValue(field);
+                if(null == columnValue){ // 如果该属性没有加column注解，则不插入数据库
+                    return;
+                }
+                PrimaryKey primaryKey = field.getAnnotation(PrimaryKey.class);
+                if(null == primaryKey){ // 如果不是主键
+                    String fieldname = field.getName();
+                    if(includeParams.contains(fieldname) && !excludeParams.contains(fieldname)){ // 如果包含在includeParams中，并不包含在excludeParams中，则需要更新这个字段
+                        updateMap.put(columnValue, field.get(obj));
+                    }
+                    return;
+                }
+                //如果是主键
+                field.setAccessible(true);
+                pkMap.put(columnValue, field.get(obj));
+                
+            }
+        });
+        
+        if(updateMap.size() <= 0 || pkMap.size() <= 0){
+            return -1;
+        }
+        
+        String tablename = getTableValue(obj.getClass()); // 获取表名
+        StringBuilder updateSb = new StringBuilder("upate ").append(tablename).append(" set ");
+        StringBuilder pkSb = new StringBuilder(" where ");
+        for(Map.Entry<String, Object> entry : updateMap.entrySet()){
+            updateSb.append(entry.getKey()).append("=").append(entry.getValue()).append(",");
+            pkSb.append(entry.getKey()).append("=").append(entry.getValue()).append(" and ");
+        }
+        String pkStr = pkSb.toString().trim();
+        pkStr = pkStr.substring(0, pkStr.length() - 3);
+        
+        conn = C3p0DbHelper.getConnection();
+//        stmt = conn.prepareStatement("");.
+//        PreparedPreparedStatement s = conn.preparePreparedStatement(sql)
+        
+//        stmt.executeUpdate(sql, columnNames);
+        
+        return 0;
     }
     
     /**
@@ -158,25 +204,25 @@ public class DbExecutor<T>
      * @return 如果类中没有加Table注解，或者Table注解为空，那么直接使用类名（全小写）作为表名；否则使用value值
      */
     private String getTableValue(Class<?> clazz){
-        Table tableAnno = clazz.getAnnotation(Table.class);
-        if(null == tableAnno || "".equals(tableAnno.value())){ // 如果类中没有加Table注解，或者Table注解为空，那么直接使用类名作为表名
+        Table table = clazz.getAnnotation(Table.class);
+        if(null == table || "".equals(table.value())){ // 如果类中没有加Table注解，或者Table注解为空，那么直接使用类名作为表名
             return clazz.getSimpleName().toLowerCase();
         }
-        return tableAnno.value();
+        return table.value();
     }
     
     
     
-    
+
     
     public boolean execute(String sql) throws SQLException{
         Connection conn = null;
-        Statement stmt = null;
+        PreparedStatement stmt = null;
         try{
             conn = C3p0DbHelper.getConnection();
-            stmt = conn.createStatement();
+            stmt = conn.prepareStatement(sql);
             logger.log(Level.INFO, "sql ==> " + sql);
-            boolean result = stmt.execute(sql);
+            boolean result = stmt.execute();
             logger.log(Level.INFO, "[execute]result: " + result);
             return result;
         }catch(SQLException ex){
@@ -185,56 +231,6 @@ public class DbExecutor<T>
             C3p0DbHelper.closeJDBC(null, stmt, conn);
         }
     }
-    
-    public boolean execute(String sql, String[] columnNames) throws SQLException{
-        Connection conn = null;
-        Statement stmt = null;
-        try{
-            conn = C3p0DbHelper.getConnection();
-            stmt = conn.createStatement();
-            logger.log(Level.INFO, "sql ==> " + sql, columnNames);
-            boolean result = stmt.execute(sql, columnNames);
-            logger.log(Level.INFO, "[execute]result: " + result);
-            return result;
-        }catch(SQLException ex){
-            throw ex;
-        }finally{
-            C3p0DbHelper.closeJDBC(null, stmt, conn);
-        }
-        
-    }
-    
-    public boolean execute(String sql, int autoGeneratedKeys) throws SQLException{
-        Connection conn = null;
-        Statement stmt = null;
-        try{
-            conn = C3p0DbHelper.getConnection();
-            stmt = conn.createStatement();
-            boolean result = stmt.execute(sql, autoGeneratedKeys);
-            return result;
-        }catch(SQLException ex){
-            throw ex;
-        }finally{
-            C3p0DbHelper.closeJDBC(null, stmt, conn);
-        }
-    }
-    
-    public boolean execute(String sql, int[] columnIndexes) throws SQLException{
-        Connection conn = null;
-        Statement stmt = null;
-        try{
-            conn = C3p0DbHelper.getConnection();
-            stmt = conn.createStatement();
-            boolean result = stmt.execute(sql, columnIndexes);
-            return result;
-        }catch(SQLException ex){
-            throw ex;
-        }finally{
-            C3p0DbHelper.closeJDBC(null, stmt, conn);
-        }
-        
-    }
-    
     
     public static Connection getConnection() {
         return C3p0DbHelper.getConnection();

@@ -24,6 +24,7 @@ public class App
         List<Person> persons = dbExector2.executeQuery("select * from person", Person.class);
 
         
+        
 //        System.out.println("2-----------------------------");
         /*
         User user = new User();
@@ -36,16 +37,18 @@ public class App
         System.out.println("3-----------------------------");
         Person p = new Person();
         p.setPid(10);
-        p.setAddress("huzhou");
+        p.setAddress("huzhou22");
         p.setAge(24);
         p.setBirthday(new Timestamp(System.currentTimeMillis()));
-        p.setName("wangjie2");
-        p.setPhoneNum("0987654321");
+        p.setName("wangjie222");
+        p.setPhoneNum("098765432155");
         
         System.out.println("person insert result: " + dbExector2.executeSave(p));
         */
         
+        System.out.println("3-----------------------------");
         
+//        dbExector.execute("delete from person where pid = 5");
         
     }
     
