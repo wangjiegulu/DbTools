@@ -164,14 +164,8 @@ public class DbExecutor<T>
         }
         
         String tablename = getTableValue(obj.getClass()); // 获取表名
-        StringBuilder updateSb = new StringBuilder("upate ").append(tablename).append(" set ");
-        StringBuilder pkSb = new StringBuilder(" where ");
-        for(Map.Entry<String, Object> entry : updateMap.entrySet()){
-            updateSb.append(entry.getKey()).append("=").append(entry.getValue()).append(",");
-            pkSb.append(entry.getKey()).append("=").append(entry.getValue()).append(" and ");
-        }
-        String pkStr = pkSb.toString().trim();
-        pkStr = pkStr.substring(0, pkStr.length() - 3);
+        
+//        TextUtil.joinStrings(, sql, tablename)
         
         conn = C3p0DbHelper.getConnection();
 //        stmt = conn.prepareStatement("");.

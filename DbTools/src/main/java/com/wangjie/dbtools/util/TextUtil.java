@@ -28,13 +28,17 @@ public class TextUtil
         return sb.toString().substring(1);
     }
     
-    public static String joinStrings(Collection<String> set, String separator){
+    public static String joinStrings(Collection<String> set, String separator, String itemOther){
         StringBuilder sb = new StringBuilder();
         for(Iterator<String> iter = set.iterator(); iter.hasNext();){
-            sb.append(separator).append(iter.next());
+            sb.append(separator).append(iter.next()).append(itemOther);
         }
         return sb.toString().trim().substring(separator.length());
     }
+    public static String joinStrings(Collection<String> set, String separator){
+        return joinStrings(set, separator, "");
+    }
+    
     
     
 }
