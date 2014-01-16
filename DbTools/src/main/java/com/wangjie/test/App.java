@@ -1,17 +1,21 @@
 package com.wangjie.test;
 
 import com.wangjie.dbtools.*;
+import java.io.File;
 import java.sql.*;
 import java.util.List;
 
 /**
  * Hello world!
- *
+ * 
  */
 public class App 
 {
     public static void main( String[] args ) throws SQLException, Exception
     {
+//        String str = App.class.getResource("/db.properties").getPath();
+//        System.out.println("----------str: " + str);
+        DbExecutor.initDatabase(App.class.getResourceAsStream("/db.properties"));
         
         DbExecutor<User> dbExector = new DbExecutor<User>();
         List<User> users = dbExector.executeQuery("select * from users", User.class);

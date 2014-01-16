@@ -9,6 +9,7 @@ import com.wangjie.dbtools.anno.PrimaryKey;
 import com.wangjie.dbtools.anno.Table;
 import com.wangjie.dbtools.util.Log;
 import com.wangjie.refect.*;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.util.ArrayList;
@@ -183,7 +184,6 @@ public class DbExecutor<T>
         }finally{
             C3p0DbHelper.closeJDBC(null, stmt, conn);
         }
-        
     }
     
     public boolean execute(String sql, String[] columnNames) throws SQLException{
@@ -236,7 +236,20 @@ public class DbExecutor<T>
     }
     
     
+    public static Connection getConnection() {
+        return C3p0DbHelper.getConnection();
+    }
     
+    public static void closeJDBC(ResultSet rs, Statement st, Connection con) {
+        C3p0DbHelper.closeJDBC(rs, st, con);
+    }
     
+    public static void initDatabase(File properityFile){
+        C3p0DbHelper.initDatabase(properityFile);
+    }
+    
+    public static void initDatabase(InputStream properityIs){
+        C3p0DbHelper.initDatabase(properityIs);
+    }
     
 }
