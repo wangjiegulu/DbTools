@@ -28,10 +28,10 @@ public class TextUtil
         return sb.toString().substring(1);
     }
     
-    public static String joinStrings(Collection<String> set, String separator, String itemOther){
+    public static String joinStrings(Collection<String> set, String separator, String append){
         StringBuilder sb = new StringBuilder();
         for(Iterator<String> iter = set.iterator(); iter.hasNext();){
-            sb.append(separator).append(iter.next()).append(itemOther);
+            sb.append(separator).append(iter.next()).append(append);
         }
         return sb.toString().trim().substring(separator.length());
     }
