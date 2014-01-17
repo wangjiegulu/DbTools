@@ -202,6 +202,12 @@ public class DbExecutor<T>
         }
     }
     
+    /**
+     * 根据主键删除数据
+     * @param obj
+     * @return
+     * @throws Exception 
+     */
     public int executeDelete(final T obj) throws Exception{
         Connection conn = null;
         PreparedStatement stmt = null;
